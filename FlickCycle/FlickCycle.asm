@@ -1,6 +1,6 @@
 .include "m32def.inc"
 
-;Initialisér programmet
+;SETUP
 
 RESET:
 
@@ -17,137 +17,100 @@ RESET:
     out			 	DDRB,		R16 				; PORTB = output
 
 
-;Start programløkken
+; Setting Variables
 
-; Sætter variable
+.equ sega=0b10111111
+.equ segb=0b11110111
+.equ segc=0b11111011
+.equ segd=0b11111101
+.equ sege=0b11111110
+.equ segf=0b11101111
+.def LastSwitch=R25     ; Defining registers to names
+.def Temp1=R16          ; Setting Temp1, LastSwitch and TestDis (display)
+.def TestDis=R20
 
-.equ seg0=0b10100000
-.equ seg1=0b11110011
-.equ seg2=0b10010100
-.equ seg3=0b10010001
-.equ seg4=0b11000011
-.equ seg5=0b10001001
-.equ seg6=0b10001000
-.equ seg7=0b10110011
-.equ seg8=0b10000000
-.equ seg9=0b10000011
 
-    ldi     R20,    1       ; Start counter at 1 as we start showing 0 then 1 sec delay then program runs
-    ldi     R16,    seg0    ; Setting value for 0 for next operation
-    out     PORTB,  R16     ; Setting display to 0 for startup
+    ldi     Temp1,      0xFF      ; Setting value for empty display
+    out     PORTB,      TEMP1     ; Setting display to 0 for startup
+    nop
+    in      LastSwitch, PINC      ; Setting start value of switchs
+
+READSWITCH:
+    in      Temp1,    PINC
 
 DELAYSTART:
-
-DELAY_1sec:                 ; For CLK(CPU) = 1 MHz
-    ldi     R16,    8       ; One clock cycle
-DELAY1:
-    ldi     R17,    125     ; One clock cycle
-DELAY2:
     ldi     R18,    250     ; One clock cycle
-
 DELAY3:
     dec     R18             ; One clock cycle
     nop                     ; One clock cycle
+    nop                     ; One clock cycle
+    nop                     ; One clock cycle
+    nop                     ; One clock cycle
+    nop                     ; One clock cycle
     brne    DELAY3          ; Two clock cycles when jumping to Delay3, 1 clock when continuing to DEC
 
-    dec     R17             ; One clock cycle
-    brne    DELAY2          ; Two clock cycles when jumping to Delay2, 1 clock when continuing to DEC
+; Total delay = (8*250) = 1000 = 1ms
 
-    dec     R16             ; One clock cycle
-    brne    DELAY1          ; Two clock cycles when jumping to Delay1, 1 clock when continuing to DEC
+    in      R17,          PINC      ; Reads the secondary value for debouncing
+    cp      Temp1,        R17       ; Compares first / second value
+    brne    READSWITCH              ; If not equal debounce = true => start over
 
-; Total delay = (4*250)*125+(125*3) = 125.375
-; 125.375*8+(8*5)+3 = 1.003.067 ≃ 1.000.000 Clock cycles
+    cp      Temp1,        LastSwitch    ; Compare last known value of switch with new
+    breq    READSWITCH                  ; If equal start over
 
-TESTER:
+    mov     LastSwitch,   Temp1         ; Saves new Last known value of switch
 
-    cpi     R20,    0       ;Compare to get counters position
-    breq    NUM0            ;Jump to NUM0 if counter at position 0
+TESTERDISPLAY:
 
-    cpi     R20,    1
-    breq    NUM1
+    in      TestDis,    PINB    ; Read value of 7-seg display
 
-    cpi     R20,    2
-    breq    NUM2
+    cpi     TestDis,    0xFF    ; Compare to get counters position
+    breq    A                   ; Jump to A if display == empty
 
-    cpi     R20,    3
-    breq    NUM3
+    cpi     TestDis,    sega    ; Compare to get counters position
+    breq    B                   ; Jump to B if display == A
 
-    cpi     R20,    4
-    breq    NUM4
+    cpi     TestDis,    segb    ; Compare to get counters position
+    breq    C                   ; Jump to C if display == B
 
-    cpi     R20,    5
-    breq    NUM5
+    cpi     TestDis,    segc    ; Compare to get counters position
+    breq    D                   ; Jump to D if display == C
 
-    cpi     R20,    6
-    breq    NUM6
+    cpi     TestDis,    segd    ; Compare to get counters position
+    breq    E                   ; Jump to E if display == D
 
-    cpi     R20,    7
-    breq    NUM7
+    cpi     TestDis,    sege    ; Compare to get counters position
+    breq    F                   ; Jump to F if display == E
 
-    cpi     R20,    8
-    breq    NUM8
+    cpi     TestDis,    segf    ; Compare to get counters position
+    breq    A                   ; Jump to A if display == F
 
-    cpi     R20,    9
-    breq    NUM9
+A:
+    ldi     Temp1,  sega        ; Writes sega value for output
+    out     PORTB,  Temp1       ; Sends value to display
+rjmp    READSWITCH              ; Jumps back to check switches
 
+B:
+    ldi     Temp1,  segb        ; Same as A just for B and so on ...
+    out     PORTB,  Temp1
+rjmp    READSWITCH
 
-NUM0:
-    inc     R20             ; Incrementing counter
-    ldi     R16,    seg0    ; Set output in register
-    out     PORTB,  R16     ; Send output to display
-rjmp    DELAYSTART          ; Jump back to delay to have 1sec delay until next number
+C:
+    ldi     Temp1,  segc
+    out     PORTB,  Temp1
+rjmp    READSWITCH
 
-NUM1:
-    inc     R20
-    ldi     R16,    seg1
-    out     PORTB,  R16
-rjmp    DELAYSTART
+D:
+    ldi     Temp1,  segd
+    out     PORTB,  Temp1
+rjmp    READSWITCH
 
-NUM2:
-    inc     R20
-    ldi     R16,    seg2
-    out     PORTB,  R16
-rjmp    DELAYSTART
+E:
+    ldi     Temp1,  sege
+    out     PORTB,  Temp1
+rjmp    READSWITCH
 
-NUM3:
-    inc     R20
-    ldi     R16,    seg3
-    out     PORTB,  R16
-rjmp    DELAYSTART
-
-NUM4:
-    inc     R20
-    ldi     R16,    seg4
-    out     PORTB,  R16
-rjmp    DELAYSTART
-
-NUM5:
-    inc     R20
-    ldi     R16,    seg5
-    out     PORTB,  R16
-rjmp    DELAYSTART
-
-NUM6:
-    inc     R20
-    ldi     R16,    seg6
-    out     PORTB,  R16
-rjmp    DELAYSTART
-
-NUM7:
-    inc     R20
-    ldi     R16,    seg7
-    out     PORTB,  R16
-rjmp    DELAYSTART
-
-NUM8:
-    inc     R20
-    ldi     R16,    seg8
-    out     PORTB,  R16
-rjmp    DELAYSTART
-
-NUM9:
-    ldi     R20,    0
-    ldi     R16,    seg9
-    out     PORTB,  R16
-rjmp    DELAYSTART
+F:
+    ldi     Temp1,  segf
+    out     PORTB,  Temp1
+rjmp    READSWITCH

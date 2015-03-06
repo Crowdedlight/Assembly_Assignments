@@ -9,7 +9,7 @@ default:
 	sudo avrdude -p m32 $(PROGRAMMER) -U flash:w:$(PROJECT).hex
 
 fuse:
-	sudo avrdude -p m32 $(PROGRAMMER) -U hfuse:w:0xd9:m -U lfuse:w:0xF1:m
+	sudo avrdude -p m32 $(PROGRAMMER) -U hfuse:w:0xd9:m -U lfuse:w:0xe4:m
 
 clean:
 	rm -f $(PROJECT).obj $(PROJECT).hex $(PROJECT).cof $(PROJECT).eep.hex
