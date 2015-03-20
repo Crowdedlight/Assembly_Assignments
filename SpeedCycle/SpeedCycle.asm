@@ -2,7 +2,7 @@
 
 ;SETUP
 
-RESET:
+SETUP:
 
     ; PORTC setup
 
@@ -34,12 +34,67 @@ RESET:
 .equ segf=0b11101111
 .def LastSwitch=R25     ; Defining registers to names
 .def Temp1=R16          ; Setting Temp1, LastSwitch and TestDis (display)
-.def TestDis=R20
-.def Debug=R26
+.def Display=R20
+.def COUNT=R26
+
+.org 0xFF
+segments: .db 0xBF,0xF7,0xFB,0xFD,0xFE,0xEF
+
+    ldi     Temp1,          sega
+    out     PORTB,          Temp1     ; Setting display to sega for startup
 
 
-    ldi     Temp1,      sega      ; Setting value for empty display
-    out     PORTB,      TEMP1     ; Setting display to 0 for startup
+rjmp MAINLOOP
+
+RESET:
+    ldi     COUNT,      0x00
+
+MAINLOOP:
+
+    call    READSWITCH
+
+    cpi     R17,    0x00
+    breq    MAINLOOP
+
+    call    DELAYLOOP
+
+    call    CYCLEDISPLAY
+
+rjmp MAINLOOP
+
+CYCLEDISPLAY:
+
+    ldi     ZH,     high(segments<<1)
+    ldi     ZL,     low(segments<<1)
+
+    add     ZL,     COUNT
+    ldi     Temp1,  0
+    adc     ZH,     Temp1
+
+    lpm     Display,  Z
+    out     PORTB,  Display
+
+    ldi     Temp1,  5
+    cp      COUNT,  Temp1
+    breq    RESET
+
+    inc     COUNT
+ret
+
+DELAYLOOP:
+    mov     R29,    R17
+DELAY1MS:
+    ldi     R30,    250
+LOOP:
+    nop
+    dec     R30
+    brne    LOOP
+
+    dec     R29
+    brne    DELAY1MS
+
+ret
+
 
 READSWITCH:
     in      Temp1,    PINC
@@ -58,80 +113,4 @@ DELAY3:
     brne    READSWITCH              ; If not equal debounce = true => start over
 
     com     R17
-
-CYCLEDISPLAY:
-
-    cpi     R17,    0x00
-    breq    READSWITCH
-
-    in      TestDis,    PINB    ; Read value of 7-seg display
-
-    cpi     TestDis,    sega    ; Compare to get counters position
-    breq    B                   ; Jump to B if display == A
-
-    cpi     TestDis,    segb    ; Compare to get counters position
-    breq    C                   ; Jump to C if display == B
-
-    cpi     TestDis,    segc    ; Compare to get counters position
-    breq    D                   ; Jump to D if display == C
-
-    cpi     TestDis,    segd    ; Compare to get counters position
-    breq    E                   ; Jump to E if display == D
-
-    cpi     TestDis,    sege    ; Compare to get counters position
-    breq    F                   ; Jump to F if display == E
-
-    cpi     TestDis,    segf    ; Compare to get counters position
-    breq    A                   ; Jump to A if display == F
-
-
-
-A:
-    ldi     Temp1,  sega        ; Writes sega value for output
-    out     PORTB,  Temp1       ; Sends value to display
-    call    DELAYLOOP
-rjmp    READSWITCH              ; Jumps back to check switches
-
-B:
-    ldi     Temp1,  segb        ; Same as A just for B and so on ...
-    out     PORTB,  Temp1
-    call    DELAYLOOP
-rjmp    READSWITCH
-
-C:
-    ldi     Temp1,  segc
-    out     PORTB,  Temp1
-    call    DELAYLOOP
-rjmp    READSWITCH
-
-D:
-    ldi     Temp1,  segd
-    out     PORTB,  Temp1
-    call    DELAYLOOP
-rjmp    READSWITCH
-
-E:
-    ldi     Temp1,  sege
-    out     PORTB,  Temp1
-    call    DELAYLOOP
-rjmp    READSWITCH
-
-F:
-    ldi     Temp1,  segf
-    out     PORTB,  Temp1
-    call    DELAYLOOP
-rjmp    READSWITCH
-
-DELAYLOOP:
-    mov     R29,    R17
-DELAY1MS:
-    ldi     R30,    250
-LOOP:
-    nop
-    dec     R30
-    brne    LOOP
-
-    dec     R29
-    brne    DELAY1MS
-
-    ret
+ret
