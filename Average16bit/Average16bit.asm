@@ -18,10 +18,10 @@ SETUP:
 
     ; PORTD Setup
 
-    ldi             R16,        0x00
-    out             DDRD,       R16
-    ldi             R16,        255
-    out             PORTD,      R16
+    ldi             R16,        0x00                ; Read input into R16
+    out             DDRD,       R16                 ; Set PORTD as input
+    ldi             R16,        255                 ; Set Pull-up value in R16
+    out             PORTD,      R16                 ; Enable pull-up
 
     ; Stack Init
 
@@ -33,29 +33,36 @@ SETUP:
 
 ; Setting Variables
 
-.def FirstNumLSB=R26
-.def FirstNumMSB=R30
+.def NumLSB=R26
+.def NumMSB=R27
 .def SecondNumLSB=R16
 .def SecondNumMSB=R17
-.def Denominator=R20
-.def QuotLSB=R24
-.def QuotMSB=R28
-.def BtnValue=R18
+.def Denominator=R21
+.def QuotLSB=R30
+.def QuotMSB=R31
+
+; Clearing Register
+    clr         QuotMSB
+    clr         QuotLSB
+    clr         BtnValue
+    clr         Denominator
+    clr         SecondNumLSB
+    clr         SecondNumMSB
 
 MAIN:
 
-    ldi         FirstNumLSB,    Low(2655)
-    ldi         FirstNumMSB,    High(2655)
+    ldi         NumLSB,    Low(2655)                ; Load first num
+    ldi         NumMSB,    High(2655)               ; LSB and MSB
 
-    ldi         SecondNumLSB,   Low(74)
-    ldi         SecondNumMSB,   High(74)
+    ldi         SecondNumLSB,   Low(74)             ; Load second Num
+    ldi         SecondNumMSB,   High(74)            ; LSB and MSB
 
-    call        SUM16
+    call        SUM16                               ; Call Sum function to add
 
-    ldi         SecondNumLSB,   Low(592)
-    ldi         SecondNumMSB,   High(592)
+    ldi         SecondNumLSB,   Low(592)            ; load next num
+    ldi         SecondNumMSB,   High(592)           ; LSB and MSB
 
-    call        SUM16
+    call        SUM16                               ; and so on
 
     ldi         SecondNumLSB,   Low(1380)
     ldi         SecondNumMSB,   High(1380)
@@ -67,76 +74,70 @@ MAIN:
 
     call        SUM16
 
-    call        DIV16_8
+    ldi         Denominator,    5                   ; Set denominator to 5
+    call        DIV16_8                             ; Call division function
 
-    com         QuotLSB
-    com         QuotMSB
-    com         FirstNumLSB
+    com         NumLSB                              ; Complement for showing
+    com         NumMSB                              ; As it's active low
+    com         Denominator
 
-    rjmp PRINT_DIODE
+    rjmp PRINT_DIODE                                ; Jump to Print_Diode loop
 
 SUM16:
 
-    add         FirstNumLSB,    SecondNumLSB
-    adc         FirstNumMSB,    SecondNumMSB
+    add         NumLSB,    SecondNumLSB             ; Add LSB together
+    adc         NumMSB,    SecondNumMSB             ; Add with carry MSB
 
     ret
 
 
 DIV16_8:
-    ldi         Denominator,    5
-    clr         QuotLSB
-    clr         QuotMSB
+    adiw        QuotMSB:QuotLSB, 1                  ; Increment counter
 
+    sub         NumLSB,    Denominator              ; Sub 5 from number LSB
+    sbci        NumMSB,    0                        ; Sub 0 with carry MSB
+    brcc        DIV16_8                             ; Break if NumMSB >=0
 
-LOOP:
-    adiw        QuotMSB:QuotLSB,1
+    subi        QuotLSB,        1                   ; One to many subs
+    sbci        QuotMSB,        0                   ; sub 1 from quot
 
-    sub         FirstNumLSB,    Denominator
-    sbci        FirstNumMSB,    0x00
-    brcc        LOOP
+    adiw        NumMSB:NumLSB,  5                   ; add the last 5 back to number
 
-    subi        QuotLSB,        0x01
-    sbci        QuotMSB,        0x00
-
-    adiw        FirstNumMSB:FirstNumLSB,  5
+    mov         Denominator,    NumLSB              ; Move to correct register for assignement
+    movw        NumMSB:NumLSB,  QuotMSB:QuotLSB     ; Move word to register as assignment said
 
     ret
 
 
-
 PRINT_DIODE:
 
-    in          BtnValue,       PIND
-    com         BtnValue
+    sbis        PIND,           6                   ; Skip next if S10 isn't activated
+    rjmp        S10                                 ; Jump to S10
 
-    cpi         BtnValue,       0b00000000
-    breq        SNone
+    sbis        PIND,           2                   ; Skip next if S11 isn't activated
+    rjmp        S11                                 ; Jump to S11
 
-    cpi         BtnValue,       0b01000000
-    breq        S10
 
-    cpi         BtnValue,       0b00000100
-    breq        S11
-
-    cpi         BtnValue,       0b01000100
-    breq        SBoth
+SNone:
+    ldi         R19,            0xFF                ; If no buttons pressed load 250
+    out         PORTB,          R19                 ; Shuts off display
 
     rjmp PRINT_DIODE
 
 S10:
-    out         PORTB,          QuotLSB
+    sbis        PIND,           2                   ; Skip next if S11 isn't pressed as well
+    rjmp        SBoth                               ; Jump as both is pressed
+
+    out         PORTB,          NumLSB              ; Otherwise show NumLSB
     rjmp        PRINT_DIODE
 
 S11:
-    out         PORTB,          QuotMSB
+    sbis        PIND,           6                   ; Skip next if S10 isn't pressed as well
+    rjmp        SBoth                               ; Jump as both is pressed
+
+    out         PORTB,          NumMSB              ; Otherwise show NumMSB
     rjmp        PRINT_DIODE
 
 SBoth:
-    out         PORTB,          FirstNumLSB
-    rjmp PRINT_DIODE
-SNone:
-    ldi         R19,            0xFF
-    out         PORTB,          R19
-
+    out         PORTB,          Denominator         ; If boths pressed show Rest
     rjmp PRINT_DIODE
