@@ -43,7 +43,7 @@ WAIT:
     in              R16,        ADCL                ; Read low first. Because you have to...
     in              R16,        ADCH                ; Read high which is used
 
-    out             OCR0,       R16                 ; Send to Duty Cycle PWM
+    out             OCR0,       R16                 ; Send to Timer Out
 
     rjmp            WAIT                            ; Repeat Loop
 
