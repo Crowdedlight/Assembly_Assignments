@@ -105,11 +105,11 @@ DELAY3:
     nop                                     ; One clock cycle
     brne    DELAY3                          ; Two clock cycles when jumping to Delay3, 1 clock when continuing to DEC
 
-; Total delay = (4*250)+1 = 1001 ~ 1ms
+; Total delay = (4*150)+1 = 600 ~ 0,6ms
 
     in      R17,          PINC              ; Reads the secondary value for debouncing
     cp      Temp1,        R17               ; Compares first / second value
     brne    READSWITCH                      ; If not equal debounce = true => start over
 
     com     R17                             ; As switch is active low flip value for correct delay function
-ret                                         
+ret
