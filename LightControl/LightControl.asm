@@ -7,7 +7,7 @@ SETUP:
     ; PORTA setup
 
     ldi				R16,		0x00				; Set output value in R16
-    out			 	DDRA,		R16 				; PORTB = output
+    out			 	DDRA,		R16 				; PORTA = input
 
     ; Potentiometer setup
 
@@ -46,7 +46,3 @@ WAIT:
     out             OCR0,       R16                 ; Send to Duty Cycle PWM
 
     rjmp            WAIT                            ; Repeat Loop
-
-
-
-; Send to diode
