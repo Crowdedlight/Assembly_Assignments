@@ -1,13 +1,10 @@
 .include "m32def.inc"
 
 .org 0
-    rjmp Main
+    rjmp Reset
 
-.org UDREaddr
-    rjmp ISR_UDRE
-
-.org URXCaddr
-    rjmp ISR_URXC
+.org URXCaddr                               ; Interrupt for recieve data
+    rjmp Recieve
 
 .org 0x2A                                   ; Skipping interrupt vektor tabel
 
@@ -23,16 +20,20 @@ Reset:
 
 ; Setup Serial
 
-; Setting serial ON
-    ldi     R16,        (1<<RXEN)|(1<<TXEN)
+; Setting serial ON And Recieve Interrupt
+    ldi     R16,        (1<<RXEN)|(1<<RXCIE)|(1<<TXEN)
     out     UCSRB,      R16
 
 ; Using UCSRC, Framesize = 8
     ldi     R16,        (1<<URSEL)|(1<<UCSZ1)|(1<<UCSZ0)
     out     UCSRC,      R16
 
-;Setting baud rate = 9600 (UBRR = 6 = 0x06)
-    ldi     R16,        0x06                ; UBRR LSB
+; UCSRA
+    ldi     R16,        (1<<U2X)            ; Less error by enabling U2X and UBRR = 12
+    out     UCSRA,      R16
+
+;Setting baud rate = 9600 (UBRR = 12)
+    ldi     R16,        12                  ; UBRR LSB
     out     UBRRL,      R16
 
     SEI                                     ; Interrupt enabled
@@ -41,16 +42,41 @@ Main:
     ; Do nothing but wait for interrupts
 rjmp Main
 
-ISR_UDRE:                                   ; ISR
-    ldi     R16,        'A'                 ; Write data to send
-    out     UDR,        R16                 ; Send Data
+
+
+Recieve:
+    in      R16,        UDR                 ; Recieve Data
+    cpi     R16,        65                  ; Compare ascii value to 65
+    brlt    Send                            ; Branch if less than 65
+    cpi     R16,        123                 ; Compare ascii value to 123
+    brge    Send                            ; Branch if greater or equal to 123
+    cpi     R16,        91                  ; If value is < 91 but still >= 65
+    brlt    UpperCase                       ; It's a Capital letter
+    cpi     R16,        97                  ; If value < 97 but also >= 91 it's
+    brlt    Send                            ; Symbols and shall just be send
+    cpi     R16,        123                 ; If value < 123 but still >= 97
+    brlt    LowerCase                       ; It's lowercase letter
 
     reti
 
+LowerCase:
+    ldi     R18,        32                  ; Add 32 as the difference from capital letter to
+    sub     R16,        R18                 ; same lowercase letter is 32. Subtract 32 to make
+                                            ; Capital letters and then send them
+    rjmp    Send
 
-ISR_URXC:                                   ; ISR
-    in      R16,        UDR                 ; Recieve Data
+Uppercase:
+    ldi     R18,        32                  ; Adding 32 instead, to make lowercase letters
+    add     R16,        R18
 
-    ; DO SOMETHING
+    rjmp    Send
+
+
+Send:                                       ; Send Data
+    sbis    UCSRA,      UDRE                ; Skip if ready to send data - Polling
+    rjmp    Send
+
+
+    out     UDR,        R16                 ; Send Data
 
     reti
